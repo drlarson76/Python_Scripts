@@ -41,8 +41,10 @@ plt.figure()
 
 # Compare Case 1 and Case 2
 MOnes = -1*np.ones(NN+1)
-C3 = np.add(np.array(C), np.array(C2))
-C3 = np.add(C3, MOnes)
+C3 = np.array(C) + np.array(C2) + MOnes # Numpy arrays add element by element.
+# Alternatively np.add will add lists element by element, but only 2 lists
+# C3 = np.add(C, C2)
+# C3 = np.add(C3, MOnes)
 plt.plot(C3)
 plt.title('Compare Case 1 and Case 2 Curve Shape') 
 plt.figure()
