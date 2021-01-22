@@ -1,5 +1,5 @@
 # Concentration
-##  Finds the concentration of an additive in a container
+##  Calculates and plots the concentration of an additive in a container over time
 ##  with equal input and output flow based on initial concentration
 ##  and input concentration.
 ##  22 Nov 2020 drl
@@ -7,12 +7,14 @@
 import matplotlib.pylab as plt
 import numpy as np
 
-# Case 1.  Input is plain water.  Container has initial concentraion.
-CInput = 0      # Input flow concentration
-COutput = 1     # Intial concentration in container
-Concentration = [COutput]   # Initialize list, container Concentration
+# Used in all cases
 a = 0.1         # Flow rate as fraction of container capacity
 NN = 50         # Number of iterations of fixed delta t
+
+# Case 1.  Input is plain water.  Container has initial concentraion.
+CInput = 0      # Input flow additive concentration
+COutput = 1     # Intial additive concentration in container
+Concentration = [COutput]   # Initialize list, container Concentration
 
 for jj in range(0, NN):
     COutput = COutput*(1-a) + CInput*(a)
@@ -24,10 +26,9 @@ plt.figure()
 
 # Case 2.  Input has constant concentration, container initially has
 #            plain water.
-CInput = 1
-COutput = 0
-Concentration2 = [COutput]
-# a = 0.1
+CInput = 1      # Input flow additive concentration
+COutput = 0     # Intial additive concentration in container
+Concentration2 = [COutput]   # Initialize list, container Concentration
 
 for jj in range(0, NN):
     COutput = COutput*(1-a) + CInput*(a)
@@ -50,9 +51,9 @@ plt.figure()
 # Case 3.  Input toggles between constant concentration as input and plain water,
 #            container initially has plain water.
 
-CInput = 1
-COutput = 0
-Concentration = [COutput]
+CInput = 1      # Input flow additive concentration
+COutput = 0     # Intial additive concentration in container
+Concentration = [COutput]   # Initialize list, container Concentration
 
 for jj in range(0, NN):
     # CLast = CLast*(1-a)
