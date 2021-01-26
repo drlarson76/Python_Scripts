@@ -2,9 +2,10 @@
 #
 
 ##01/20/2021 InternetMonitorData10
-##  Finish Function-izing
+##  x Finish Function-izing
 ##  Add Comments
-##  Add Ping_Bad_Limit, Sleep_per_Loop, and Start Time to Output file
+##  x Add Ping_Bad_Limit, Sleep_per_Loop, and Start Time to Output file
+##  x Put output files in some directory
 ##01/15/2021 InternetMonitorData9
 ##  Convert to structured programming.
 ##      Function for writing to file.  Write to file normal and write to file error.
@@ -49,7 +50,8 @@ import os.path
 NN = 60     # Number of pings
 NPlot = 30  # Number of most recent pings to plot
 Ping_Bad_Limit = 200    # in milliseconds (ms)
-Outage_File_Name = 'Outage0120_Temp11.csv'
+Ping_Event_Files = 'C:\\DaveL\\Technical\\MyPyScripts\\Ping_Event_Files\\'
+Outage_File_Name = 'Outage0126_Temp06.csv'
 Sleep_per_Loop = 0.1    # Seconds.  Script uses little/no CPU with 2 seconds
 Show_Continuous_Ping_Plot = True
 G_IP =  '8.8.4.4'           # Google IP Address
@@ -64,24 +66,26 @@ R_IP = '192.168.1.1'        # Router IP Address
 # Initialize Output File and Start Time
 def Initilize_Output_File():
     # Single needed input variable is global use input:  Outage_File_Name
-    if not os.path.isfile(Outage_File_Name):
-        with open(Outage_File_Name, mode='w', newline='') as Outage_file:
+    if not os.path.isfile(Ping_Event_Files + Outage_File_Name):
+        with open(Ping_Event_Files + Outage_File_Name, mode='w', newline='') as Outage_file:
             Outage_writer = csv.writer(Outage_file)
             Outage_writer.writerow(['Type', 'Date', 'Time', 'TOD', 'Duration', 'Ping Count', \
-                'Worst Code', 'Max Ping', 'Down Time', 'Up Time', 'Monitor Time'])
+                'Worst Code', 'Max Ping', 'Down Time', 'Up Time', 'Monitor Time', \
+                'Ping Bad Limit', 'Sleep per Loop', 'Start Time'])
             # File closes at end of WITH
     else:
-        print('File ' + Outage_File_Name + ' exists.  Use different file name.')
+        print('File ' + Ping_Event_Files + Outage_File_Name + ' exists.  Use different file name.')
         sys.exit(0)
 
-    Outage_file = open(Outage_File_Name, mode='a', newline='')  # Re-open for append in loop.
+    Outage_file = open(Ping_Event_Files + Outage_File_Name, mode='a', newline='')  # Re-open for append in loop.
     Outage_CSV = csv.writer(Outage_file)
 
     dtc = datetime.datetime.now()
     print('Start Time ' + dtc.strftime("%Y-%m-%d %H:%M:%S"))
 
     Outage_Row = ['Start', dtc.strftime("%Y-%m-%d"), dtc.strftime("%H:%M:%S"), '', '', \
-        '', '', '',  str(0), str(0), str(0)]
+        '', '', '',  str(0), str(0), str(0), \
+        '', '', '']
     Outage_CSV.writerow(Outage_Row)
     # Write buffered lines to file
     Outage_file.flush()
@@ -163,6 +167,9 @@ def Write_Last_Entries_And_Close(Called_By):
     Bad_Start       = Global_Var_List[11] #
     Bad_End         = Global_Var_List[12] #
     Last_Minus_2_Was_Bad = Global_Var_List[13] #
+    Ping_Bad_Limit  = Global_Var_List[14] # 
+    Sleep_per_Loop  = Global_Var_List[15] #
+    Start_Time      = Global_Var_List[16] #
 
     if Last_Minus_2_Was_Bad:    # In the middle of a bad event when CTRL-C or end of Loop
                                 #   Update down time, write event to output file.
@@ -174,7 +181,8 @@ def Write_Last_Entries_And_Close(Called_By):
         Up_Time = round(Event_End - Cum_Down_Time_Exit, 1)
         Outage_Row = ['Bad', dtc.strftime("%Y-%m-%d"), dtc.strftime("%H:%M:%S"), TOD_Labels[TOD], str(Bad_Duration), \
             str(Bad_Tot_Counts), Code_Labels[Last_Bad_Code], str(Last_Bad_Ping), \
-            str(Cum_Down_Time_Exit), str(Up_Time), str(Event_End)]
+            str(Cum_Down_Time_Exit), str(Up_Time), str(Event_End), \
+            str(Ping_Bad_Limit), str(Sleep_per_Loop), Start_Time]
         Outage_CSV.writerow(Outage_Row)
     else:
         Cum_Down_Time_Exit = Cum_Down_Time  # No addition to down time.
@@ -184,7 +192,8 @@ def Write_Last_Entries_And_Close(Called_By):
     Up_Time = round(Module_Duration - Cum_Down_Time_Exit, 1)
     Outage_Row = ['End', dtc.strftime("%Y-%m-%d"), dtc.strftime("%H:%M:%S"), '', '', \
         '', '', '', \
-        str(Cum_Down_Time_Exit), str(Up_Time), str(Module_Duration)]
+        str(Cum_Down_Time_Exit), str(Up_Time), str(Module_Duration), \
+        '', '', '']
     Outage_CSV.writerow(Outage_Row)
 
     # Close file
@@ -227,6 +236,8 @@ def Main_Program():
     Cum_Down_Time = 0
     Code_Labels = ['None', 'Timed Out', 'Unreachable', 'General Failure', 'Unknown Failure']
     TOD_Labels = ['Night', 'Day', 'Evening']
+    dtc = datetime.datetime.now()
+    Start_Time = dtc.strftime("%Y-%m-%d %H:%M:%S")
     
     # Initialize Output File.  Get FID and CSV Handle.
     Outage_file, Outage_CSV = Initilize_Output_File()
@@ -335,7 +346,8 @@ def Main_Program():
                 + ' Worst Ping = ' + str(Last_Bad_Ping) )
             Outage_Row = ['Bad', dtc.strftime("%Y-%m-%d"), dtc.strftime("%H:%M:%S"), TOD_Labels[TOD], str(Bad_Duration), \
                 str(Bad_Tot_Counts), Code_Labels[Last_Bad_Code], str(Last_Bad_Ping), \
-                str(Cum_Down_Time), str(Up_Time), str(Event_End)]
+                str(Cum_Down_Time), str(Up_Time), str(Event_End), \
+                str(Ping_Bad_Limit), str(Sleep_per_Loop), Start_Time]
             Outage_CSV.writerow(Outage_Row)
 
             # Write buffered lines to file
@@ -359,7 +371,8 @@ def Main_Program():
         Global_Var_List =  [Outage_file,        Outage_CSV,     TOD_Labels,     TOD, \
                             Bad_Duration,       Bad_Count,      Code_Labels,    Last_Bad_Code, \
                             Last_Bad_Ping,      Cum_Down_Time,  Module_Start,   Bad_Start, \
-                            Bad_End,            Last_Minus_2_Was_Bad ]
+                            Bad_End,            Last_Minus_2_Was_Bad, \
+                            Ping_Bad_Limit,      Sleep_per_Loop, Start_Time]
         
         # Show plot if requested.
         if Show_Continuous_Ping_Plot:
