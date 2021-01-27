@@ -3,7 +3,7 @@
 
 ##01/20/2021 InternetMonitorData10
 ##  x Finish Function-izing
-##  Add Comments
+##  x Add Comments
 ##  x Add Ping_Bad_Limit, Sleep_per_Loop, and Start Time to Output file
 ##  x Put output files in some directory
 ##01/15/2021 InternetMonitorData9
@@ -47,18 +47,18 @@ import os
 import os.path
 
 # User Set up values, these are global defined outside the functions.
-NN = 60     # Number of pings
+NN = 60*30*9     # Number of pings
 NPlot = 30  # Number of most recent pings to plot
 Ping_Bad_Limit = 200    # in milliseconds (ms)
 Ping_Event_Files = 'C:\\DaveL\\Technical\\MyPyScripts\\Ping_Event_Files\\'
-Outage_File_Name = 'Outage0126_Temp06.csv'
-Sleep_per_Loop = 0.1    # Seconds.  Script uses little/no CPU with 2 seconds
-Show_Continuous_Ping_Plot = True
+Outage_File_Name = 'Outage0127_09.csv'
+Sleep_per_Loop = 1.7    # Seconds.  Script uses little/no CPU with 2 seconds
+Show_Continuous_Ping_Plot = False
 G_IP =  '8.8.4.4'           # Google IP Address
 ##G_IP = '157.157.157.157'  # Times out Test Address
 ##G_IP = '192.168.1.5'      # Unreachable Test Address
 R_IP = '192.168.1.1'        # Router IP Address
-##R_IP = '192.168.254.254'  # Alex Router IP Address
+##R_IP = '192.168.254.254'  # NC Router IP Address
 ##R_IP = '192.168.1.6'      # PC IP Address
 
 
@@ -66,6 +66,7 @@ R_IP = '192.168.1.1'        # Router IP Address
 # Initialize Output File and Start Time
 def Initilize_Output_File():
     # Single needed input variable is global use input:  Outage_File_Name
+    # Open file, write first line, close
     if not os.path.isfile(Ping_Event_Files + Outage_File_Name):
         with open(Ping_Event_Files + Outage_File_Name, mode='w', newline='') as Outage_file:
             Outage_writer = csv.writer(Outage_file)
@@ -73,20 +74,24 @@ def Initilize_Output_File():
                 'Worst Code', 'Max Ping', 'Down Time', 'Up Time', 'Monitor Time', \
                 'Ping Bad Limit', 'Sleep per Loop', 'Start Time'])
             # File closes at end of WITH
-    else:
+    else: # File exists.  Say so and exit.
         print('File ' + Ping_Event_Files + Outage_File_Name + ' exists.  Use different file name.')
         sys.exit(0)
 
-    Outage_file = open(Ping_Event_Files + Outage_File_Name, mode='a', newline='')  # Re-open for append in loop.
+    # Re-open for append in loop in Main
+    Outage_file = open(Ping_Event_Files + Outage_File_Name, mode='a', newline='')  
     Outage_CSV = csv.writer(Outage_file)
 
+    # Get and print current date/time
     dtc = datetime.datetime.now()
     print('Start Time ' + dtc.strftime("%Y-%m-%d %H:%M:%S"))
 
+    # Write start row to file
     Outage_Row = ['Start', dtc.strftime("%Y-%m-%d"), dtc.strftime("%H:%M:%S"), '', '', \
         '', '', '',  str(0), str(0), str(0), \
         '', '', '']
     Outage_CSV.writerow(Outage_Row)
+    
     # Write buffered lines to file
     Outage_file.flush()
     os.fsync(Outage_file.fileno())
@@ -105,16 +110,18 @@ def Classify_Ping_Response(Ping_String, Ping_Source, Bad_Limit, Loop_Count):
         Ping_Time = -30
         Last_Was_Bad = True
         Bad_Code = 3
-    elif Ping_String.find('time=') > 0:     # Ping time returned
+    elif Ping_String.find('time=') > 0:     # Valid ping time returned
         Istart = Ping_String.find('time', 50, 150) + 5
         Iend = Ping_String.find('ms', 50, 150)
-        Ping_Time = int(Ping_String[Istart:Iend]) # Internet ping time in ms
-        Bad_Code = 0
+        Ping_Time = int(Ping_String[Istart:Iend]) # Ping time in ms
+        Bad_Code = 0    # 0 = Valid Ping.
+        
+        # Was ping time too long?  I.E. over Bad_Limit?
         if Ping_Time >= Bad_Limit:
             Last_Was_Bad = True
         else:
             Last_Was_Bad = False
-    else:
+    else:                               # Unknown Failure
         print(Ping_Source + ':  Some funky error in ' + Ping_Source + ' string.  Loop = ', str(Loop_Count))
         print(Ping_String)
         Ping_Time = -40       # Unknown Failure
@@ -212,7 +219,7 @@ def Write_Last_Entries_And_Close(Called_By):
 
 ### Main Routine -------------------------
         ## Determine Duration of Bad Event and Write Event to File, use internet ping only
-        ## This section is a switch statement determined by whether the event was bad
+        ## This section contains a switch statement determined by whether the event was bad
         ##      and whether there was at leat 2 bad events consecutively.
         ##      Ignores good pings.  Ignores a single bad ping response.
         ##      Accumulates duration and information on bad events of 2 or more ping
@@ -225,8 +232,8 @@ def Main_Program():
     RTime = []  # Router ping times list
     plt.ion()   # MatPlotLib interactive 'on' for continuous ping time plotting
     YMax = 200  # Default plot Y maximum
-    Ims = 0
-    Rms = 0
+    Ims = 0     # Internet Ping Time
+    Rms = 0     # Router Pint Time
     Last_Was_Bad = False
     Last_Minus_2_Was_Bad = False 
     Bad_Count = 0
@@ -238,36 +245,26 @@ def Main_Program():
     TOD_Labels = ['Night', 'Day', 'Evening']
     dtc = datetime.datetime.now()
     Start_Time = dtc.strftime("%Y-%m-%d %H:%M:%S")
+    TOD = 0
+    Bad_Duration = 0
+    Bad_Start = 0
+    Bad_End = 0
     
     # Initialize Output File.  Get FID and CSV Handle.
     Outage_file, Outage_CSV = Initilize_Output_File()
 
-    global Global_Var_List
-    # # Global Vars needed for Exit_gracefully
-    # Outage_file   # Output file FID.  Global in user input.
-    # Outage_CSV    # CSV handle
-    # TOD_Labels:   Already defined.
-    TOD = 0
-    Bad_Duration = 0
-    # Bad_Count:    Already defined.
-    # Code_Labels:  Already defined.
-    # Last_Bad_Code:  Already defined.
-    # Last_Bad_Ping:  Already defined.
-    # Cum_Down_Time:  Already defined.
-    # Module_Start:  Already defined.
-    Bad_Start = 0
-    Bad_End = 0
-    # Last_Minus_2_Was_Bad
-    # Global_Var_List =  [Outage_file,        Outage_CSV,     TOD_Labels,     TOD, \
-                        # Bad_Duration,       Bad_Count,      Code_Labels,    Last_Bad_Code, \
-                        # Last_Bad_Ping,      Cum_Down_Time,  Module_Start,   Bad_Start, \
-                        # Bad_End,            Last_Minus_2_Was_Bad ]
+    # Only input method to function Exit_gracefully()
+    #   using signal.signal() is using global variables.
+    global Global_Var_List  # Contains list of variables to pass as global.
+        # See list assignment to Global_Var_List at end of loop.
+        # Many of the variables are in the intialization list above.
     
-    # This is the Main routine, doing pings, parsing and classifying responses, making
-    #   ping time lists, making bad event duration items.
+    # Loop for requested ping count along with ping delay (Sleep_per_Loop) defined by user.
     for jj in range(0, NN):
-        time.sleep(Sleep_per_Loop)
-        time.sleep(0.05)    # Minimum Ping Seperation
+        time.sleep(Sleep_per_Loop)  # Delay between pings, user set.
+        time.sleep(0.05)    # Minimum Ping Seperation, insuring no collisions
+
+        # Time at ping, also create time classification variable
         dtc = datetime.datetime.now()
         if dtc.hour < 8:  # Night
             TOD = 0
@@ -275,8 +272,11 @@ def Main_Program():
             TOD = 1
         else:
             TOD = 2  # Evening
+
+        # Print loop status periodically
         if jj/450 == math.floor(jj/450):
             print('Loop Count = ' + str(jj) + ' of ' + str(NN) + '  ' + dtc.strftime("%Y-%m-%d %H:%M:%S"))
+
         # Ping Internet and Router
         Iout = subprocess.Popen('ping ' + G_IP + ' -n 1', stdout=subprocess.PIPE, shell=True)
         (internetout, Ierr) = Iout.communicate()
@@ -289,7 +289,7 @@ def Main_Program():
         Rstring = routerout.decode('utf8')
 
         # Parse strings, classify ping response
-        # Internet ping time 
+        # Internet ping time.  Only keep event information on "Internet" pings
         Last_Was_Bad = False 
         Ims, Last_Was_Bad, Bad_Code = Classify_Ping_Response(Istring, 'Internet', Ping_Bad_Limit, jj)
         ITime.append(Ims)
@@ -339,7 +339,7 @@ def Main_Program():
             Event_End = round(time.time() - Module_Start, 1)
             Up_Time = round(Event_End - Cum_Down_Time, 1)
 
-            # Print Events and Write Evemts to file
+            # Print Last Event and Write Evemts to file
             print(dtc.strftime("%Y-%m-%d %H:%M:%S") + ' Duration = ' + str(Bad_Duration) \
                 + ' Ping Count = ' + str(Bad_Tot_Counts) )
             print('     Worst Code = ' + Code_Labels[Last_Bad_Code] \
@@ -368,6 +368,8 @@ def Main_Program():
             Last_Minus_2_Was_Bad = False
         
         # Update global variable values after each loop to be ready for any interupt.
+            # Only input method to this function for CTRL-C through Exit_gracefully()
+            #   using signal.signal() is using global variables.
         Global_Var_List =  [Outage_file,        Outage_CSV,     TOD_Labels,     TOD, \
                             Bad_Duration,       Bad_Count,      Code_Labels,    Last_Bad_Code, \
                             Last_Bad_Ping,      Cum_Down_Time,  Module_Start,   Bad_Start, \
@@ -378,7 +380,7 @@ def Main_Program():
         if Show_Continuous_Ping_Plot:
             Continuous_Plot(YMax, ITime, RTime, Ims, Rms, NN, jj)
     
-    # If in a bad event loop, write event.  Write End information, close file.
+    # If in a bad event loop, write event.  Then Write End information, close file.
     Write_Last_Entries_And_Close('Normal')
 
 if __name__ == '__main__':
